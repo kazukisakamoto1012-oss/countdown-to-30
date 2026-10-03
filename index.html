@@ -175,10 +175,85 @@
     .actions { display: flex; gap: 8px; margin-top: 24px; }
     .actions button { flex: 1; margin: 0; }
     .secondary { background: var(--track); color: var(--text); font-weight: 600; }
+
+    /* ログイン */
+    .login { text-align: center; padding-top: 64px; }
+    .login .sub { margin-bottom: 40px; line-height: 1.7; }
+    .google-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      width: 100%;
+      max-width: 320px;
+      padding: 14px 16px;
+      background: var(--card);
+      color: var(--text);
+      border: 1px solid var(--line);
+      font-weight: 600;
+    }
+    .google-btn svg { width: 20px; height: 20px; }
+    .status { text-align: center; color: var(--muted); padding-top: 96px; }
+
+    /* アカウント */
+    .account {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-top: 48px;
+      padding-top: 16px;
+      border-top: 1px solid var(--line);
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .account #userEmail { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .account-links { display: flex; align-items: center; gap: 16px; flex-shrink: 0; }
+    .account a, .legal a { color: var(--muted); }
+    .legal { margin-top: 32px; font-size: 13px; }
+
+    /* エラー通知 */
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 24px;
+      transform: translateX(-50%);
+      width: max-content;
+      max-width: calc(100% - 32px);
+      padding: 12px 16px;
+      border-radius: 10px;
+      background: var(--text);
+      color: var(--bg);
+      font-size: 14px;
+      z-index: 10;
+    }
   </style>
 </head>
 <body>
   <main>
+    <!-- 読み込み中 -->
+    <p class="status" id="loading">読み込み中…</p>
+
+    <!-- ログイン -->
+    <section class="login" id="login" hidden>
+      <h1>30歳まで、あと</h1>
+      <p class="sub">残りの時間と、目標と、習慣を。<br>スマホでもPCでも、同じデータで。</p>
+      <button class="google-btn" id="googleLogin">
+        <svg viewBox="0 0 48 48" aria-hidden="true">
+          <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/>
+          <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/>
+          <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/>
+          <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/>
+        </svg>
+        Googleでログイン
+      </button>
+      <p class="error" id="loginError"></p>
+      <p class="legal"><a href="privacy.html">プライバシーポリシー</a></p>
+    </section>
+
+    <!-- アプリ本体（ログイン後） -->
+    <div id="app" hidden>
+
     <nav class="tabs" role="tablist">
       <button class="tab" role="tab" data-tab="deathday" aria-selected="true">命日</button>
       <button class="tab" role="tab" data-tab="goals" aria-selected="false">目標</button>
@@ -262,7 +337,17 @@
       <div class="list" id="habitList"></div>
       <div class="card empty" id="habitEmpty"><p>右上の＋から習慣を追加しましょう</p></div>
     </div>
+
+    <div class="account">
+      <span id="userEmail"></span>
+      <span class="account-links">
+        <a href="privacy.html">プライバシーポリシー</a>
+        <button class="link" id="logout">ログアウト</button>
+      </span>
+    </div>
+    </div>
   </main>
+
 
   <!-- 目標を追加 -->
   <dialog id="goalDialog">
@@ -298,22 +383,32 @@
     </form>
   </dialog>
 
+  <div class="toast" id="toast" hidden></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
-    const STORAGE_KEY = "birthday";
     const TARGET_AGE = 30;
     const DAY_MS = 24 * 60 * 60 * 1000;
 
+    // Supabase への接続情報。このキーは公開してよい「公開用キー」で、
+    // データは RLS（行単位のアクセス制御）で本人しか読み書きできないようにしている
+    const SUPABASE_URL = "https://vhionrkamplzjiaikdwf.supabase.co";
+    const SUPABASE_KEY = "sb_publishable_Sd3vtNV7lz1Q8OEVRa2-OA_9bNS0Wx4";
+    const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
     const $ = (id) => document.getElementById(id);
 
-    // 保存できない環境（プライベートモード等）でも動くよう、メモリにも持っておく
-    let memoryBirthday = null;
-    function loadBirthday() {
-      try { return localStorage.getItem(STORAGE_KEY) || memoryBirthday; } catch (e) { return memoryBirthday; }
+    // ログイン中のユーザーと、データベースから読み込んだデータ
+    const state = { user: null, birthday: null, goals: [], habits: [] };
+
+    let toastTimer;
+    function toast(message) {
+      $("toast").textContent = message;
+      $("toast").hidden = false;
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { $("toast").hidden = true; }, 4000);
     }
-    function saveBirthday(value) {
-      memoryBirthday = value;
-      try { localStorage.setItem(STORAGE_KEY, value); } catch (e) {}
-    }
+    const SAVE_ERROR = "保存できませんでした。通信状況を確認して、もう一度お試しください";
 
     // 日付は「年月日」だけを扱い、時差やサマータイムの影響を受けないよう UTC で計算する
     function toUTC(y, m, d) {
@@ -369,9 +464,13 @@
     }
 
     function render() {
-      const saved = loadBirthday();
+      const saved = state.birthday;
 
       if (!saved) {
+        // ログイン機能を入れる前にこの端末で入力していた誕生日があれば、入力欄に入れておく
+        if (!$("birthday").value) {
+          try { $("birthday").value = localStorage.getItem("birthday") || ""; } catch (e) {}
+        }
         $("setup").hidden = false;
         $("result").hidden = true;
         return;
@@ -399,7 +498,7 @@
       $("result").hidden = false;
     }
 
-    $("save").addEventListener("click", () => {
+    $("save").addEventListener("click", async () => {
       const value = $("birthday").value;
       if (!value) {
         $("error").textContent = "誕生日を選んでください";
@@ -412,34 +511,24 @@
         return;
       }
       $("error").textContent = "";
-      saveBirthday(value);
+      $("save").disabled = true;
+      const { error } = await db.from("profiles").upsert({ user_id: state.user.id, birthday: value, updated_at: new Date().toISOString() });
+      $("save").disabled = false;
+      if (error) {
+        $("error").textContent = SAVE_ERROR;
+        return;
+      }
+      state.birthday = value;
       render();
     });
 
     $("edit").addEventListener("click", () => {
-      $("birthday").value = loadBirthday() || "";
+      $("birthday").value = state.birthday || "";
       $("setup").hidden = false;
       $("result").hidden = true;
     });
 
     // ===== 目標・習慣 =====
-    const GOALS_KEY = "goals";
-    const HABITS_KEY = "habits";
-    const memoryLists = {};
-
-    function loadList(key) {
-      try {
-        const v = localStorage.getItem(key);
-        if (v !== null) return JSON.parse(v);
-      } catch (e) {}
-      return memoryLists[key] || [];
-    }
-    function saveList(key, list) {
-      memoryLists[key] = list;
-      try { localStorage.setItem(key, JSON.stringify(list)); } catch (e) {}
-    }
-
-    const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     const pad = (n) => String(n).padStart(2, "0");
     const dateStr = (d) => `${d.y}-${pad(d.m + 1)}-${pad(d.d)}`;
     const escapeHTML = (str) => str.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -489,7 +578,7 @@
     }
 
     function renderGoals() {
-      const goals = loadList(GOALS_KEY);
+      const goals = state.goals;
       // 未達成を期限の近い順に、達成済みは下へ
       const sorted = [...goals].sort((a, b) => {
         if (a.done !== b.done) return a.done ? 1 : -1;
@@ -502,7 +591,7 @@
     }
 
     function renderHabits() {
-      const habits = loadList(HABITS_KEY);
+      const habits = state.habits;
       const todayStr = dateStr(today());
       $("habitList").innerHTML = habits
         .map((h) => {
@@ -514,37 +603,67 @@
       $("habitEmpty").hidden = habits.length > 0;
     }
 
-    $("goalList").addEventListener("click", (e) => {
+    // 目標：チェック・削除（画面を先に更新し、保存に失敗したら元に戻す）
+    $("goalList").addEventListener("click", async (e) => {
       const btn = e.target.closest("[data-action]");
       if (!btn) return;
-      let goals = loadList(GOALS_KEY);
-      const goal = goals.find((g) => g.id === btn.dataset.id);
+      const goal = state.goals.find((g) => g.id === btn.dataset.id);
       if (!goal) return;
+
       if (btn.dataset.action === "toggle") {
         goal.done = !goal.done;
+        renderGoals();
+        const { error } = await db.from("goals").update({ done: goal.done }).eq("id", goal.id);
+        if (error) {
+          goal.done = !goal.done;
+          renderGoals();
+          toast(SAVE_ERROR);
+        }
       } else if (confirm(`「${goal.title}」を削除しますか？`)) {
-        goals = goals.filter((g) => g.id !== goal.id);
+        const before = state.goals;
+        state.goals = state.goals.filter((g) => g.id !== goal.id);
+        renderGoals();
+        const { error } = await db.from("goals").delete().eq("id", goal.id);
+        if (error) {
+          state.goals = before;
+          renderGoals();
+          toast(SAVE_ERROR);
+        }
       }
-      saveList(GOALS_KEY, goals);
-      renderGoals();
     });
 
-    $("habitList").addEventListener("click", (e) => {
+    // 習慣：今日のチェック・削除
+    $("habitList").addEventListener("click", async (e) => {
       const btn = e.target.closest("[data-action]");
       if (!btn) return;
-      let habits = loadList(HABITS_KEY);
-      const habit = habits.find((h) => h.id === btn.dataset.id);
+      const habit = state.habits.find((h) => h.id === btn.dataset.id);
       if (!habit) return;
+
       if (btn.dataset.action === "toggle") {
         const todayStr = dateStr(today());
-        habit.doneDates = habit.doneDates.includes(todayStr)
-          ? habit.doneDates.filter((d) => d !== todayStr)
-          : [...habit.doneDates, todayStr];
+        const before = habit.doneDates;
+        const wasDone = before.includes(todayStr);
+        habit.doneDates = wasDone ? before.filter((d) => d !== todayStr) : [...before, todayStr];
+        renderHabits();
+        const { error } = wasDone
+          ? await db.from("habit_logs").delete().eq("habit_id", habit.id).eq("done_on", todayStr)
+          : await db.from("habit_logs").insert({ habit_id: habit.id, done_on: todayStr });
+        if (error) {
+          habit.doneDates = before;
+          renderHabits();
+          toast(SAVE_ERROR);
+        }
       } else if (confirm(`「${habit.title}」を削除しますか？`)) {
-        habits = habits.filter((h) => h.id !== habit.id);
+        const before = state.habits;
+        state.habits = state.habits.filter((h) => h.id !== habit.id);
+        renderHabits();
+        const { error } = await db.from("habits").delete().eq("id", habit.id);
+        if (error) {
+          state.habits = before;
+          renderHabits();
+          toast(SAVE_ERROR);
+        }
       }
-      saveList(HABITS_KEY, habits);
-      renderHabits();
     });
 
     // ＋ボタン → ダイアログ
@@ -559,26 +678,137 @@
       b.addEventListener("click", () => b.closest("dialog").close());
     });
 
+    // 追加中は「追加」ボタンを押せないようにして、二重登録を防ぐ
+    async function submitWith(form, task) {
+      const submit = form.querySelector('[type="submit"]');
+      submit.disabled = true;
+      try {
+        await task();
+        form.closest("dialog").close();
+      } catch (err) {
+        toast(SAVE_ERROR);
+      } finally {
+        submit.disabled = false;
+      }
+    }
+
     $("goalForm").addEventListener("submit", (e) => {
       e.preventDefault();
       const title = $("goalTitle").value.trim();
       if (!title) return;
-      const goals = loadList(GOALS_KEY);
-      goals.push({ id: newId(), title, deadline: $("goalDeadline").value || null, done: false });
-      saveList(GOALS_KEY, goals);
-      $("goalDialog").close();
-      renderGoals();
+      submitWith($("goalForm"), async () => {
+        const { data, error } = await db
+          .from("goals")
+          .insert({ title, deadline: $("goalDeadline").value || null })
+          .select("id, title, deadline, done")
+          .single();
+        if (error) throw error;
+        state.goals.push(data);
+        renderGoals();
+      });
     });
 
     $("habitForm").addEventListener("submit", (e) => {
       e.preventDefault();
       const title = $("habitName").value.trim();
       if (!title) return;
-      const habits = loadList(HABITS_KEY);
-      habits.push({ id: newId(), title, doneDates: [] });
-      saveList(HABITS_KEY, habits);
-      $("habitDialog").close();
+      submitWith($("habitForm"), async () => {
+        const { data, error } = await db.from("habits").insert({ title }).select("id, title").single();
+        if (error) throw error;
+        state.habits.push({ ...data, doneDates: [] });
+        renderHabits();
+      });
+    });
+
+    // ===== データの読み込み =====
+    // 習慣の記録は1回で最大1000件しか取れないので、分けて全部読む
+    async function fetchAllLogs() {
+      const PAGE = 1000;
+      const rows = [];
+      for (let from = 0; ; from += PAGE) {
+        const { data, error } = await db
+          .from("habit_logs")
+          .select("habit_id, done_on")
+          .order("done_on")
+          .range(from, from + PAGE - 1);
+        if (error) throw error;
+        rows.push(...data);
+        if (data.length < PAGE) return rows;
+      }
+    }
+
+    async function loadAll() {
+      const [profile, goals, habits, logs] = await Promise.all([
+        db.from("profiles").select("birthday").maybeSingle(),
+        db.from("goals").select("id, title, deadline, done").order("created_at"),
+        db.from("habits").select("id, title").order("created_at"),
+        fetchAllLogs(),
+      ]);
+      const error = profile.error || goals.error || habits.error;
+      if (error) throw error;
+
+      state.birthday = profile.data ? profile.data.birthday : null;
+      state.goals = goals.data;
+      state.habits = habits.data.map((h) => ({
+        ...h,
+        doneDates: logs.filter((l) => l.habit_id === h.id).map((l) => l.done_on),
+      }));
+    }
+
+    function renderAll() {
+      render();
+      renderGoals();
       renderHabits();
+    }
+
+    // ===== ログイン =====
+    function showScreen(name) {
+      $("loading").hidden = name !== "loading";
+      $("login").hidden = name !== "login";
+      $("app").hidden = name !== "app";
+    }
+
+    async function handleSession(session) {
+      if (!session) {
+        state.user = null;
+        showScreen("login");
+        return;
+      }
+      // トークンの更新などで同じユーザーのまま呼ばれたときは読み込み直さない
+      if (state.user && state.user.id === session.user.id) return;
+
+      state.user = session.user;
+      $("userEmail").textContent = session.user.email || "";
+      showScreen("loading");
+      try {
+        await loadAll();
+        renderAll();
+        showScreen("app");
+      } catch (err) {
+        state.user = null;
+        $("loginError").textContent = "データを読み込めませんでした。ページを再読み込みしてください";
+        showScreen("login");
+      }
+    }
+
+    // Supabase の処理の中から直接 Supabase を呼ぶと止まることがあるので、次のタイミングで実行する
+    db.auth.onAuthStateChange((event, session) => {
+      setTimeout(() => handleSession(session), 0);
+    });
+
+    $("googleLogin").addEventListener("click", async () => {
+      $("loginError").textContent = "";
+      const { error } = await db.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo: location.origin + location.pathname },
+      });
+      if (error) $("loginError").textContent = "ログインを開始できませんでした。もう一度お試しください";
+    });
+
+    $("logout").addEventListener("click", async () => {
+      await db.auth.signOut();
+      Object.assign(state, { user: null, birthday: null, goals: [], habits: [] });
+      showScreen("login");
     });
 
     // 開いたまま日付が変わっても表示を更新する
@@ -586,9 +816,7 @@
     setInterval(() => {
       if (today().d !== lastDay) {
         lastDay = today().d;
-        render();
-        renderGoals();
-        renderHabits();
+        if (state.user) renderAll();
       }
     }, 60 * 1000);
 
@@ -611,9 +839,6 @@
     if (savedTab && document.querySelector(`[data-panel="${savedTab}"]`)) showTab(savedTab);
 
     $("birthday").max = new Date().toLocaleDateString("sv-SE");
-    render();
-    renderGoals();
-    renderHabits();
   </script>
 </body>
 </html>
