@@ -1,0 +1,619 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>30歳まであと何日</title>
+  <style>
+    :root {
+      --bg: #f6f5f2;
+      --card: #ffffff;
+      --text: #1d1d1f;
+      --muted: #6e6e73;
+      --line: #e3e1dc;
+      --accent: #f76707;
+      --track: #ece9e3;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #111113;
+        --card: #1c1c1f;
+        --text: #f2f2f2;
+        --muted: #9a9aa0;
+        --line: #2c2c30;
+        --accent: #ff922b;
+        --track: #2a2a2e;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      display: flex;
+      justify-content: center;
+      padding: 48px 16px;
+    }
+    main { width: 100%; max-width: 480px; }
+    h1 { font-size: 22px; margin: 0 0 4px; }
+    .sub { color: var(--muted); font-size: 14px; margin: 0 0 32px; }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 16px;
+    }
+    label { display: block; font-size: 14px; color: var(--muted); margin-bottom: 8px; }
+    input[type="date"], input[type="text"] {
+      width: 100%;
+      font-size: 18px;
+      padding: 12px;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: var(--bg);
+      color: var(--text);
+    }
+    button {
+      font: inherit;
+      cursor: pointer;
+      border: none;
+      border-radius: 10px;
+      padding: 12px 16px;
+    }
+    .primary { width: 100%; margin-top: 16px; background: var(--accent); color: #fff; font-weight: 600; }
+    .link { background: none; color: var(--muted); padding: 4px 0; text-decoration: underline; font-size: 14px; }
+    .error { color: var(--accent); font-size: 14px; margin: 8px 0 0; min-height: 1em; }
+
+    .stat-label { font-size: 14px; color: var(--muted); margin: 0 0 4px; }
+    .stat-value { font-size: 44px; font-weight: 700; letter-spacing: -0.02em; margin: 0; font-variant-numeric: tabular-nums; color: var(--accent); }
+    .stat-value .unit { font-size: 18px; font-weight: 600; margin: 0 6px 0 2px; color: var(--muted); }
+    .grid { display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 16px; }
+    .grid .card { margin-bottom: 0; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    /* 横並びのカードは幅に合わせて文字サイズを縮める（スマホでも1行に収める） */
+    .half { padding: 20px; container-type: inline-size; }
+    .half .stat-value { font-size: clamp(22px, 20cqi, 36px); }
+    .half .stat-value .unit { font-size: 0.42em; margin: 0 3px 0 1px; }
+    .stat-value { white-space: nowrap; }
+    .stat-label, .stat-value { text-align: center; }
+    .stat-value .unit:last-child { margin-right: 0; }
+
+    .progress-head { display: flex; justify-content: space-between; font-size: 14px; color: var(--muted); margin-bottom: 8px; }
+    .track { height: 10px; background: var(--track); border-radius: 999px; overflow: hidden; }
+    .bar { height: 100%; background: var(--accent); border-radius: 999px; width: 0; }
+
+    .footer { display: flex; justify-content: space-between; align-items: center; font-size: 14px; color: var(--muted); }
+    .done { font-size: 20px; font-weight: 600; margin: 0; }
+    [hidden] { display: none !important; }
+
+    /* タブ */
+    .tabs {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 4px;
+      padding: 4px;
+      margin-bottom: 32px;
+      background: var(--track);
+      border-radius: 12px;
+    }
+    .tab {
+      background: none;
+      color: var(--muted);
+      font-weight: 600;
+      padding: 10px 0;
+      border-radius: 9px;
+    }
+    .tab[aria-selected="true"] {
+      background: var(--card);
+      color: var(--accent);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    }
+    .empty { text-align: center; color: var(--muted); padding: 48px 24px; }
+    .empty p { margin: 0; }
+
+    /* 見出し＋右上の追加ボタン */
+    .panel-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+    .add-btn {
+      flex-shrink: 0;
+      width: 40px;
+      height: 40px;
+      padding: 0;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      font-size: 26px;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* 目標・習慣のリスト */
+    .list { display: flex; flex-direction: column; gap: 12px; }
+    .list:empty { display: none; }
+    .item { display: flex; align-items: center; gap: 14px; padding: 16px; margin: 0; }
+    .check {
+      flex-shrink: 0;
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      border-radius: 50%;
+      border: 2px solid var(--line);
+      background: none;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .check.on { background: var(--accent); border-color: var(--accent); }
+    .item-body { flex: 1; min-width: 0; }
+    .item-title { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+    .item.done .item-title { color: var(--muted); text-decoration: line-through; }
+    .item-meta { margin: 2px 0 0; font-size: 13px; color: var(--muted); }
+    .item-meta strong { color: var(--accent); font-size: 15px; }
+    .del { flex-shrink: 0; background: none; color: var(--muted); padding: 4px 8px; font-size: 20px; line-height: 1; }
+
+    /* 追加ダイアログ */
+    dialog {
+      width: min(420px, calc(100% - 32px));
+      border: none;
+      border-radius: 16px;
+      padding: 24px;
+      background: var(--card);
+      color: var(--text);
+    }
+    dialog::backdrop { background: rgba(0, 0, 0, 0.4); }
+    dialog h2 { font-size: 18px; margin: 0 0 16px; }
+    .field + .field { margin-top: 16px; }
+    .actions { display: flex; gap: 8px; margin-top: 24px; }
+    .actions button { flex: 1; margin: 0; }
+    .secondary { background: var(--track); color: var(--text); font-weight: 600; }
+  </style>
+</head>
+<body>
+  <main>
+    <nav class="tabs" role="tablist">
+      <button class="tab" role="tab" data-tab="deathday" aria-selected="true">命日</button>
+      <button class="tab" role="tab" data-tab="goals" aria-selected="false">目標</button>
+      <button class="tab" role="tab" data-tab="habits" aria-selected="false">習慣</button>
+    </nav>
+
+    <!-- 命日 -->
+    <div class="panel" data-panel="deathday">
+    <h1>30歳まで、あと</h1>
+    <p class="sub">残りの時間を、毎日たしかめる。</p>
+
+    <!-- 誕生日入力 -->
+    <section id="setup" class="card" hidden>
+      <label for="birthday">誕生日を入力してください</label>
+      <input type="date" id="birthday">
+      <p class="error" id="error"></p>
+      <button class="primary" id="save">はじめる</button>
+    </section>
+
+    <!-- カウントダウン -->
+    <section id="result" hidden>
+      <div id="counting" class="grid">
+        <div class="card">
+          <p class="stat-label">残り日数</p>
+          <p class="stat-value"><span id="days"></span><span class="unit">日</span></p>
+        </div>
+        <div class="row">
+          <div class="card half">
+            <p class="stat-label">残り週数</p>
+            <p class="stat-value"><span id="weeks"></span><span class="unit">週</span><span id="weekDays"></span><span class="unit">日</span></p>
+          </div>
+          <div class="card half">
+            <p class="stat-label">残り月数</p>
+            <p class="stat-value"><span id="months"></span><span class="unit">ヶ月</span><span id="monthDays"></span><span class="unit">日</span></p>
+          </div>
+        </div>
+      </div>
+
+      <div id="reached" class="card" hidden>
+        <p class="done">30歳の誕生日を迎えました 🎉</p>
+      </div>
+
+      <div class="card">
+        <div class="progress-head">
+          <span>0歳</span>
+          <span id="percent"></span>
+          <span>30歳</span>
+        </div>
+        <div class="track"><div class="bar" id="bar"></div></div>
+      </div>
+
+      <div class="footer">
+        <span id="target"></span>
+        <button class="link" id="edit">誕生日を変更</button>
+      </div>
+    </section>
+    </div>
+
+    <!-- 目標 -->
+    <div class="panel" data-panel="goals" hidden>
+      <div class="panel-head">
+        <div>
+          <h1>目標</h1>
+          <p class="sub">30歳までに、やりたいこと。</p>
+        </div>
+        <button class="add-btn" id="addGoal" aria-label="目標を追加">＋</button>
+      </div>
+      <div class="list" id="goalList"></div>
+      <div class="card empty" id="goalEmpty"><p>右上の＋から目標を追加しましょう</p></div>
+    </div>
+
+    <!-- 習慣 -->
+    <div class="panel" data-panel="habits" hidden>
+      <div class="panel-head">
+        <div>
+          <h1>習慣</h1>
+          <p class="sub">毎日の積み重ねを、続ける。</p>
+        </div>
+        <button class="add-btn" id="addHabit" aria-label="習慣を追加">＋</button>
+      </div>
+      <div class="list" id="habitList"></div>
+      <div class="card empty" id="habitEmpty"><p>右上の＋から習慣を追加しましょう</p></div>
+    </div>
+  </main>
+
+  <!-- 目標を追加 -->
+  <dialog id="goalDialog">
+    <form id="goalForm">
+      <h2>目標を追加</h2>
+      <div class="field">
+        <label for="goalTitle">目標</label>
+        <input type="text" id="goalTitle" maxlength="50" placeholder="例：フルマラソンを完走する" required>
+      </div>
+      <div class="field">
+        <label for="goalDeadline">期限（任意）</label>
+        <input type="date" id="goalDeadline">
+      </div>
+      <div class="actions">
+        <button type="button" class="secondary" data-close>キャンセル</button>
+        <button type="submit" class="primary">追加</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- 習慣を追加 -->
+  <dialog id="habitDialog">
+    <form id="habitForm">
+      <h2>習慣を追加</h2>
+      <div class="field">
+        <label for="habitName">習慣</label>
+        <input type="text" id="habitName" maxlength="50" placeholder="例：毎朝10分読書する" required>
+      </div>
+      <div class="actions">
+        <button type="button" class="secondary" data-close>キャンセル</button>
+        <button type="submit" class="primary">追加</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script>
+    const STORAGE_KEY = "birthday";
+    const TARGET_AGE = 30;
+    const DAY_MS = 24 * 60 * 60 * 1000;
+
+    const $ = (id) => document.getElementById(id);
+
+    // 保存できない環境（プライベートモード等）でも動くよう、メモリにも持っておく
+    let memoryBirthday = null;
+    function loadBirthday() {
+      try { return localStorage.getItem(STORAGE_KEY) || memoryBirthday; } catch (e) { return memoryBirthday; }
+    }
+    function saveBirthday(value) {
+      memoryBirthday = value;
+      try { localStorage.setItem(STORAGE_KEY, value); } catch (e) {}
+    }
+
+    // 日付は「年月日」だけを扱い、時差やサマータイムの影響を受けないよう UTC で計算する
+    function toUTC(y, m, d) {
+      return Date.UTC(y, m, d);
+    }
+
+    function today() {
+      const now = new Date();
+      return { y: now.getFullYear(), m: now.getMonth(), d: now.getDate() };
+    }
+
+    function daysInMonth(y, m) {
+      return new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+    }
+
+    // 月を足す。存在しない日（例: 1/31 + 1ヶ月）は月末に丸める
+    function addMonths(date, n) {
+      const total = date.m + n;
+      const y = date.y + Math.floor(total / 12);
+      const m = ((total % 12) + 12) % 12;
+      return { y, m, d: Math.min(date.d, daysInMonth(y, m)) };
+    }
+
+    function parseDate(str) {
+      const [y, m, d] = str.split("-").map(Number);
+      return { y, m: m - 1, d };
+    }
+
+    function calc(birth) {
+      // 2/29 生まれは、30歳の年がうるう年でなければ 2/28 とする
+      const ty = birth.y + TARGET_AGE;
+      const target = { y: ty, m: birth.m, d: Math.min(birth.d, daysInMonth(ty, birth.m)) };
+      const now = today();
+
+      const nowUTC = toUTC(now.y, now.m, now.d);
+      const targetUTC = toUTC(target.y, target.m, target.d);
+      const birthUTC = toUTC(birth.y, birth.m, birth.d);
+
+      const days = Math.round((targetUTC - nowUTC) / DAY_MS);
+
+      // 「あと〇ヶ月と〇日」：今日から月単位で進めて、超えない最大の月数を求める
+      let months = (target.y - now.y) * 12 + (target.m - now.m);
+      let probe = addMonths(now, months);
+      if (toUTC(probe.y, probe.m, probe.d) > targetUTC) {
+        months -= 1;
+        probe = addMonths(now, months);
+      }
+      const monthDays = Math.round((targetUTC - toUTC(probe.y, probe.m, probe.d)) / DAY_MS);
+
+      const progress = Math.min(1, Math.max(0, (nowUTC - birthUTC) / (targetUTC - birthUTC)));
+
+      return { target, days, weeks: Math.floor(days / 7), weekDays: days % 7, months, monthDays, progress };
+    }
+
+    function render() {
+      const saved = loadBirthday();
+
+      if (!saved) {
+        $("setup").hidden = false;
+        $("result").hidden = true;
+        return;
+      }
+
+      const r = calc(parseDate(saved));
+      const reached = r.days <= 0;
+
+      $("counting").hidden = reached;
+      $("reached").hidden = !reached;
+
+      const fmt = (n) => n.toLocaleString("ja-JP");
+      $("days").textContent = fmt(r.days);
+      $("weeks").textContent = fmt(r.weeks);
+      $("weekDays").textContent = r.weekDays;
+      $("months").textContent = fmt(r.months);
+      $("monthDays").textContent = r.monthDays;
+
+      const pct = (r.progress * 100).toFixed(1);
+      $("percent").textContent = `${pct}% 経過`;
+      $("bar").style.width = `${pct}%`;
+      $("target").textContent = `30歳の誕生日：${r.target.y}年${r.target.m + 1}月${r.target.d}日`;
+
+      $("setup").hidden = true;
+      $("result").hidden = false;
+    }
+
+    $("save").addEventListener("click", () => {
+      const value = $("birthday").value;
+      if (!value) {
+        $("error").textContent = "誕生日を選んでください";
+        return;
+      }
+      const b = parseDate(value);
+      const t = today();
+      if (toUTC(b.y, b.m, b.d) > toUTC(t.y, t.m, t.d)) {
+        $("error").textContent = "未来の日付は選べません";
+        return;
+      }
+      $("error").textContent = "";
+      saveBirthday(value);
+      render();
+    });
+
+    $("edit").addEventListener("click", () => {
+      $("birthday").value = loadBirthday() || "";
+      $("setup").hidden = false;
+      $("result").hidden = true;
+    });
+
+    // ===== 目標・習慣 =====
+    const GOALS_KEY = "goals";
+    const HABITS_KEY = "habits";
+    const memoryLists = {};
+
+    function loadList(key) {
+      try {
+        const v = localStorage.getItem(key);
+        if (v !== null) return JSON.parse(v);
+      } catch (e) {}
+      return memoryLists[key] || [];
+    }
+    function saveList(key, list) {
+      memoryLists[key] = list;
+      try { localStorage.setItem(key, JSON.stringify(list)); } catch (e) {}
+    }
+
+    const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    const pad = (n) => String(n).padStart(2, "0");
+    const dateStr = (d) => `${d.y}-${pad(d.m + 1)}-${pad(d.d)}`;
+    const escapeHTML = (str) => str.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+
+    function daysUntil(str) {
+      const d = parseDate(str);
+      const t = today();
+      return Math.round((toUTC(d.y, d.m, d.d) - toUTC(t.y, t.m, t.d)) / DAY_MS);
+    }
+
+    // 今日（まだなら昨日）からさかのぼって、何日連続でできているか
+    function streak(doneDates) {
+      const done = new Set(doneDates);
+      const t = today();
+      let cursor = new Date(t.y, t.m, t.d);
+      const str = (d) => dateStr({ y: d.getFullYear(), m: d.getMonth(), d: d.getDate() });
+      if (!done.has(str(cursor))) cursor.setDate(cursor.getDate() - 1);
+      let count = 0;
+      while (done.has(str(cursor))) {
+        count++;
+        cursor.setDate(cursor.getDate() - 1);
+      }
+      return count;
+    }
+
+    function itemHTML({ id, title, meta, checked, strike = false }) {
+      return `
+        <div class="card item${strike ? " done" : ""}">
+          <button class="check${checked ? " on" : ""}" data-action="toggle" data-id="${id}" aria-label="完了にする">${checked ? "✓" : ""}</button>
+          <div class="item-body">
+            <p class="item-title">${escapeHTML(title)}</p>
+            <p class="item-meta">${meta}</p>
+          </div>
+          <button class="del" data-action="delete" data-id="${id}" aria-label="削除">×</button>
+        </div>`;
+    }
+
+    function goalMeta(g) {
+      if (g.done) return "達成！";
+      if (!g.deadline) return "期限なし";
+      const [y, m, d] = g.deadline.split("-").map(Number);
+      const label = `${y}/${m}/${d}`;
+      const left = daysUntil(g.deadline);
+      if (left > 0) return `${label} まで あと<strong>${left.toLocaleString("ja-JP")}</strong>日`;
+      if (left === 0) return `${label}　<strong>今日が期限</strong>`;
+      return `${label}　期限を過ぎています`;
+    }
+
+    function renderGoals() {
+      const goals = loadList(GOALS_KEY);
+      // 未達成を期限の近い順に、達成済みは下へ
+      const sorted = [...goals].sort((a, b) => {
+        if (a.done !== b.done) return a.done ? 1 : -1;
+        return (a.deadline || "9999") < (b.deadline || "9999") ? -1 : 1;
+      });
+      $("goalList").innerHTML = sorted
+        .map((g) => itemHTML({ id: g.id, title: g.title, meta: goalMeta(g), checked: g.done, strike: g.done }))
+        .join("");
+      $("goalEmpty").hidden = goals.length > 0;
+    }
+
+    function renderHabits() {
+      const habits = loadList(HABITS_KEY);
+      const todayStr = dateStr(today());
+      $("habitList").innerHTML = habits
+        .map((h) => {
+          const n = streak(h.doneDates);
+          const meta = n > 0 ? `<strong>${n}</strong>日連続` : "今日からはじめよう";
+          return itemHTML({ id: h.id, title: h.title, meta, checked: h.doneDates.includes(todayStr) });
+        })
+        .join("");
+      $("habitEmpty").hidden = habits.length > 0;
+    }
+
+    $("goalList").addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-action]");
+      if (!btn) return;
+      let goals = loadList(GOALS_KEY);
+      const goal = goals.find((g) => g.id === btn.dataset.id);
+      if (!goal) return;
+      if (btn.dataset.action === "toggle") {
+        goal.done = !goal.done;
+      } else if (confirm(`「${goal.title}」を削除しますか？`)) {
+        goals = goals.filter((g) => g.id !== goal.id);
+      }
+      saveList(GOALS_KEY, goals);
+      renderGoals();
+    });
+
+    $("habitList").addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-action]");
+      if (!btn) return;
+      let habits = loadList(HABITS_KEY);
+      const habit = habits.find((h) => h.id === btn.dataset.id);
+      if (!habit) return;
+      if (btn.dataset.action === "toggle") {
+        const todayStr = dateStr(today());
+        habit.doneDates = habit.doneDates.includes(todayStr)
+          ? habit.doneDates.filter((d) => d !== todayStr)
+          : [...habit.doneDates, todayStr];
+      } else if (confirm(`「${habit.title}」を削除しますか？`)) {
+        habits = habits.filter((h) => h.id !== habit.id);
+      }
+      saveList(HABITS_KEY, habits);
+      renderHabits();
+    });
+
+    // ＋ボタン → ダイアログ
+    function openDialog(dialog, form) {
+      form.reset();
+      dialog.showModal();
+      form.querySelector("input").focus();
+    }
+    $("addGoal").addEventListener("click", () => openDialog($("goalDialog"), $("goalForm")));
+    $("addHabit").addEventListener("click", () => openDialog($("habitDialog"), $("habitForm")));
+    document.querySelectorAll("[data-close]").forEach((b) => {
+      b.addEventListener("click", () => b.closest("dialog").close());
+    });
+
+    $("goalForm").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const title = $("goalTitle").value.trim();
+      if (!title) return;
+      const goals = loadList(GOALS_KEY);
+      goals.push({ id: newId(), title, deadline: $("goalDeadline").value || null, done: false });
+      saveList(GOALS_KEY, goals);
+      $("goalDialog").close();
+      renderGoals();
+    });
+
+    $("habitForm").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const title = $("habitName").value.trim();
+      if (!title) return;
+      const habits = loadList(HABITS_KEY);
+      habits.push({ id: newId(), title, doneDates: [] });
+      saveList(HABITS_KEY, habits);
+      $("habitDialog").close();
+      renderHabits();
+    });
+
+    // 開いたまま日付が変わっても表示を更新する
+    let lastDay = today().d;
+    setInterval(() => {
+      if (today().d !== lastDay) {
+        lastDay = today().d;
+        render();
+        renderGoals();
+        renderHabits();
+      }
+    }, 60 * 1000);
+
+    // タブ切り替え（最後に開いたタブを覚えておく）
+    const TAB_KEY = "tab";
+    function showTab(name) {
+      document.querySelectorAll(".tab").forEach((t) => {
+        t.setAttribute("aria-selected", String(t.dataset.tab === name));
+      });
+      document.querySelectorAll(".panel").forEach((p) => {
+        p.hidden = p.dataset.panel !== name;
+      });
+      try { localStorage.setItem(TAB_KEY, name); } catch (e) {}
+    }
+    document.querySelectorAll(".tab").forEach((t) => {
+      t.addEventListener("click", () => showTab(t.dataset.tab));
+    });
+    let savedTab = null;
+    try { savedTab = localStorage.getItem(TAB_KEY); } catch (e) {}
+    if (savedTab && document.querySelector(`[data-panel="${savedTab}"]`)) showTab(savedTab);
+
+    $("birthday").max = new Date().toLocaleDateString("sv-SE");
+    render();
+    renderGoals();
+    renderHabits();
+  </script>
+</body>
+</html>
