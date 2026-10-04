@@ -14,16 +14,14 @@
       --accent: #f76707;
       --track: #ece9e3;
     }
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --bg: #111113;
-        --card: #1c1c1f;
-        --text: #f2f2f2;
-        --muted: #9a9aa0;
-        --line: #2c2c30;
-        --accent: #ff922b;
-        --track: #2a2a2e;
-      }
+    :root[data-theme="dark"] {
+      --bg: #111113;
+      --card: #1c1c1f;
+      --text: #f2f2f2;
+      --muted: #9a9aa0;
+      --line: #2c2c30;
+      --accent: #ff922b;
+      --track: #2a2a2e;
     }
     * { box-sizing: border-box; }
     body {
@@ -342,6 +340,7 @@
       <span id="userEmail"></span>
       <span class="account-links">
         <a href="privacy.html">プライバシーポリシー</a>
+        <button class="link" id="themeToggle">ダークにする</button>   ← この行を追加
         <button class="link" id="logout">ログアウト</button>
       </span>
     </div>
@@ -819,6 +818,20 @@
         if (state.user) renderAll();
       }
     }, 60 * 1000);
+    // 見た目の切り替え（選んだほうをブラウザに覚えておく）
+    const THEME_KEY = "theme";
+    function applyTheme(theme) {
+      document.documentElement.dataset.theme = theme;
+      $("themeToggle").textContent = theme === "dark" ? "ライトにする" : "ダークにする";
+    }
+    let savedTheme = "light";
+    try { savedTheme = localStorage.getItem(THEME_KEY) || "light"; } catch (e) {}
+    applyTheme(savedTheme);
+    $("themeToggle").addEventListener("click", () => {
+      const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+      applyTheme(next);
+      try { localStorage.setItem(THEME_KEY, next); } catch (e) {}
+    });
 
     // タブ切り替え（最後に開いたタブを覚えておく）
     const TAB_KEY = "tab";
