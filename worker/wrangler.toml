@@ -1,0 +1,4 @@
+# Cloudflare Workers の設定ファイル
+name = "countdown-to-30"            # Worker の名前（公開URLにも使われる）
+main = "src/index.js"               # 最初に動かすファイル
+compatibility_date = "2026-10-04"   # この日付時点の Workers の仕様で動かす
