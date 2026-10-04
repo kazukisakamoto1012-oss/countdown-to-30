@@ -92,7 +92,7 @@
     /* タブ */
     .tabs {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(4, 1fr);
       gap: 4px;
       padding: 4px;
       margin-bottom: 32px;
@@ -156,6 +156,82 @@
     .item.done .item-title { color: var(--muted); text-decoration: line-through; }
     .item-meta { margin: 2px 0 0; font-size: 13px; color: var(--muted); }
     .item-meta strong { color: var(--accent); font-size: 15px; }
+    /* 日記 */
+    .diary-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 12px; margin-bottom: 12px; }
+    .diary-head input[type="date"] { width: auto; font-size: 16px; padding: 8px 10px; }
+    .diary-status { font-size: 13px; color: var(--muted); }
+    textarea {
+      width: 100%;
+      min-height: 180px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--bg);
+      color: var(--text);
+      font: inherit;
+      font-size: 16px;
+      line-height: 1.7;
+      resize: vertical;
+    }
+    .diary-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 12px; }
+    .diary-foot span { font-size: 13px; color: var(--muted); }
+    .diary-foot .primary { width: auto; margin: 0; padding: 10px 28px; }
+    .diary-entry { padding: 20px; margin: 0; }
+    .diary-entry-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .diary-entry-date { margin: 0; font-weight: 600; color: var(--accent); }
+    .diary-entry-actions { display: flex; align-items: center; gap: 4px; }
+    .diary-entry-body { margin-top: 8px; }
+    /* 長い日記は途中まで表示し、押すと全文を開く */
+    .diary-entry-body.can-expand:not(.expanded) {
+      max-height: 10em;
+      overflow: hidden;
+      cursor: pointer;
+      -webkit-mask-image: linear-gradient(#000 60%, transparent);
+      mask-image: linear-gradient(#000 60%, transparent);
+    }
+    .diary-entry-body.can-expand { cursor: pointer; }
+
+    /* 書く／プレビューの切り替え */
+    .mode-switch { display: inline-flex; gap: 2px; padding: 2px; background: var(--track); border-radius: 8px; }
+    .mode-switch button { background: none; color: var(--muted); font-size: 13px; font-weight: 600; padding: 6px 12px; border-radius: 6px; }
+    .mode-switch button[aria-pressed="true"] { background: var(--card); color: var(--text); }
+    /* マークダウン入力のツールバー */
+    .md-toolbar { display: flex; gap: 2px; flex-wrap: wrap; }
+    .md-toolbar button {
+      min-width: 34px;
+      height: 32px;
+      padding: 0 8px;
+      background: none;
+      color: var(--text);
+      font-size: 14px;
+      border-radius: 6px;
+    }
+    .md-toolbar button:hover { background: var(--track); }
+    .md-toolbar .b { font-weight: 800; }
+    .md-hint { font-size: 12px; color: var(--muted); margin: 8px 0 0; }
+    .md-hint code { font-family: ui-monospace, Menlo, monospace; font-size: 11px; background: var(--track); padding: 1px 5px; border-radius: 4px; white-space: nowrap; }
+    #diaryPreview { min-height: 180px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; }
+
+    /* マークダウンの表示 */
+    .md { overflow-wrap: anywhere; line-height: 1.75; }
+    .md > :first-child { margin-top: 0; }
+    .md > :last-child { margin-bottom: 0; }
+    .md h1, .md h2, .md h3 { line-height: 1.4; margin: 1.2em 0 0.4em; }
+    .md h1 { font-size: 1.3em; }
+    .md h2 { font-size: 1.15em; }
+    .md h3 { font-size: 1em; }
+    .md p { margin: 0.5em 0; }
+    .md ul, .md ol { margin: 0.5em 0; padding-left: 1.5em; }
+    .md li:has(> input[type="checkbox"]) { list-style: none; margin-left: -1.3em; }
+    .md blockquote { margin: 0.6em 0; padding: 0.2em 0 0.2em 1em; border-left: 3px solid var(--accent); color: var(--muted); }
+    .md code { font-family: ui-monospace, Menlo, monospace; font-size: 0.9em; background: var(--track); padding: 0.1em 0.35em; border-radius: 4px; }
+    .md pre { background: var(--track); padding: 12px; border-radius: 8px; overflow-x: auto; }
+    .md pre code { background: none; padding: 0; }
+    .md hr { border: none; border-top: 1px solid var(--line); margin: 1em 0; }
+    .md a { color: var(--accent); }
+    .md table { border-collapse: collapse; }
+    .md th, .md td { border: 1px solid var(--line); padding: 4px 8px; }
+    .diary-list-title { font-size: 14px; color: var(--muted); margin: 32px 0 12px; }
     .del { flex-shrink: 0; background: none; color: var(--muted); padding: 4px 8px; font-size: 20px; line-height: 1; }
 
     /* 追加ダイアログ */
@@ -256,6 +332,7 @@
       <button class="tab" role="tab" data-tab="deathday" aria-selected="true">命日</button>
       <button class="tab" role="tab" data-tab="goals" aria-selected="false">目標</button>
       <button class="tab" role="tab" data-tab="habits" aria-selected="false">習慣</button>
+      <button class="tab" role="tab" data-tab="diary" aria-selected="false">日記</button>
     </nav>
 
     <!-- 命日 -->
@@ -336,6 +413,40 @@
       <div class="card empty" id="habitEmpty"><p>右上の＋から習慣を追加しましょう</p></div>
     </div>
 
+    <!-- 日記 -->
+    <div class="panel" data-panel="diary" hidden>
+      <h1>日記</h1>
+      <p class="sub">今日のことを、残しておく。</p>
+      <div class="card">
+        <div class="diary-head">
+          <input type="date" id="diaryDate" aria-label="日記の日付">
+          <span class="diary-status" id="diaryStatus"></span>
+        </div>
+        <div class="diary-head">
+          <div class="mode-switch">
+            <button id="modeWrite" aria-pressed="true">書く</button>
+            <button id="modePreview" aria-pressed="false">プレビュー</button>
+          </div>
+          <div class="md-toolbar" id="mdToolbar">
+            <button class="b" data-md="bold" title="太字（Cmd + B）">B</button>
+            <button data-md="heading" title="見出し">見出し</button>
+            <button data-md="list" title="箇条書き">• リスト</button>
+            <button data-md="check" title="チェックボックス">☑</button>
+            <button data-md="quote" title="引用">❝</button>
+          </div>
+        </div>
+        <textarea id="diaryBody" maxlength="5000" placeholder="今日はどんな一日でしたか？"></textarea>
+        <div class="md" id="diaryPreview" hidden></div>
+        <p class="md-hint" id="mdHint">文字を選んでボタンを押すと、マークダウンの記号が入ります（記号を直接書いてもOK）</p>
+        <div class="diary-foot">
+          <span id="diaryCount">0 / 5000</span>
+          <button class="primary" id="diarySave">保存</button>
+        </div>
+      </div>
+      <p class="diary-list-title" id="diaryListTitle">これまでの日記</p>
+      <div class="list" id="diaryList"></div>
+    </div>
+
     <div class="account">
       <span id="userEmail"></span>
       <span class="account-links">
@@ -385,6 +496,9 @@
   <div class="toast" id="toast" hidden></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- マークダウンを HTML に変換する（marked）／危険なタグを取り除く（DOMPurify） -->
+  <script src="https://cdn.jsdelivr.net/npm/marked@18/lib/marked.umd.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
   <script>
     const TARGET_AGE = 30;
     const DAY_MS = 24 * 60 * 60 * 1000;
@@ -398,7 +512,7 @@
     const $ = (id) => document.getElementById(id);
 
     // ログイン中のユーザーと、データベースから読み込んだデータ
-    const state = { user: null, birthday: null, goals: [], habits: [] };
+    const state = { user: null, birthday: null, goals: [], habits: [], diaries: [] };
 
     let toastTimer;
     function toast(message) {
@@ -719,16 +833,240 @@
       });
     });
 
+    // ===== 日記 =====
+    const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
+    let diaryLoadedDate = null; // 入力欄に読み込んでいる日付
+    let diaryDirty = false;     // 保存していない変更があるか
+
+    function formatDiaryDate(str) {
+      const d = parseDate(str);
+      const w = WEEKDAYS[new Date(toUTC(d.y, d.m, d.d)).getUTCDay()];
+      return `${d.y}年${d.m + 1}月${d.d}日（${w}）`;
+    }
+
+    const findDiary = (date) => state.diaries.find((x) => x.entry_date === date);
+
+    // マークダウン → HTML。日記の中に <script> などが書かれても実行されないよう、DOMPurify で消毒する
+    function renderMarkdown(text) {
+      return DOMPurify.sanitize(marked.parse(text, { breaks: true }));
+    }
+
+    function setDiaryMode(mode) {
+      const preview = mode === "preview";
+      $("modeWrite").setAttribute("aria-pressed", String(!preview));
+      $("modePreview").setAttribute("aria-pressed", String(preview));
+      $("diaryBody").hidden = preview;
+      $("diaryPreview").hidden = !preview;
+      $("mdToolbar").hidden = preview;
+      $("mdHint").hidden = preview;
+      if (preview) {
+        const text = $("diaryBody").value.trim();
+        $("diaryPreview").innerHTML = text ? renderMarkdown(text) : '<p style="color: var(--muted)">まだ何も書いていません</p>';
+      }
+    }
+    // ----- マークダウン入力の補助 -----
+    const editor = $("diaryBody");
+
+    // 選んでいる範囲を text に置き換える。execCommand を使うと Cmd + Z で元に戻せる
+    function replaceRange(start, end, text, selectFrom, selectTo) {
+      editor.focus();
+      editor.setSelectionRange(start, end);
+      if (!document.execCommand("insertText", false, text)) {
+        editor.setRangeText(text, start, end, "end");
+        editor.dispatchEvent(new Event("input"));
+      }
+      editor.setSelectionRange(start + selectFrom, start + selectTo);
+    }
+
+    // 選んだ文字を記号で囲む（例：太字なら **文字**）。何も選んでいなければ見本の文字を入れる
+    function wrapSelection(mark, placeholder) {
+      const { selectionStart: a, selectionEnd: b, value } = editor;
+      const selected = value.slice(a, b) || placeholder;
+      replaceRange(a, b, mark + selected + mark, mark.length, mark.length + selected.length);
+    }
+
+    // 選んでいる行の先頭に記号を付ける。すべての行に付いていたら外す（もう一度押すと元に戻る）
+    function toggleLinePrefix(prefix) {
+      const { selectionStart: a, selectionEnd: b, value } = editor;
+      const lineStart = value.lastIndexOf("\n", a - 1) + 1;
+      let lineEnd = value.indexOf("\n", b);
+      if (lineEnd === -1) lineEnd = value.length;
+      const lines = value.slice(lineStart, lineEnd).split("\n");
+      const allHave = lines.every((l) => l.startsWith(prefix));
+      const next = lines.map((l) => (allHave ? l.slice(prefix.length) : prefix + l)).join("\n");
+      replaceRange(lineStart, lineEnd, next, next.length, next.length);
+    }
+
+    const MD_ACTIONS = {
+      bold: () => wrapSelection("**", "太字"),
+      heading: () => toggleLinePrefix("## "),
+      list: () => toggleLinePrefix("- "),
+      check: () => toggleLinePrefix("- [ ] "),
+      quote: () => toggleLinePrefix("> "),
+    };
+    $("mdToolbar").addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-md]");
+      if (btn) MD_ACTIONS[btn.dataset.md]();
+    });
+
+    editor.addEventListener("keydown", (e) => {
+      // Cmd + B（Windows は Ctrl + B）で太字
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        MD_ACTIONS.bold();
+        return;
+      }
+      // 箇条書き・チェック・引用の行で Enter を押したら、次の行にも同じ記号を付ける
+      if (e.key !== "Enter" || e.shiftKey || e.isComposing) return;
+      const { selectionStart: a, selectionEnd: b, value } = editor;
+      if (a !== b) return;
+      const lineStart = value.lastIndexOf("\n", a - 1) + 1;
+      const line = value.slice(lineStart, a);
+      const m = line.match(/^(- \[[ x]\] |- |> )/);
+      if (!m) return;
+      e.preventDefault();
+      if (line === m[1]) {
+        // 記号だけの空の行で Enter → 記号を消して箇条書きを終える
+        replaceRange(lineStart, a, "", 0, 0);
+      } else {
+        const prefix = m[1].startsWith("- [") ? "- [ ] " : m[1];
+        replaceRange(a, a, "\n" + prefix, prefix.length + 1, prefix.length + 1);
+      }
+    });
+
+    $("modeWrite").addEventListener("click", () => setDiaryMode("write"));
+    $("modePreview").addEventListener("click", () => setDiaryMode("preview"));
+
+    // 選んだ日付の日記を入力欄に読み込む
+    function loadDiaryEditor(date) {
+      const entry = findDiary(date);
+      $("diaryDate").value = date;
+      $("diaryBody").value = entry ? entry.body : "";
+      diaryLoadedDate = date;
+      diaryDirty = false;
+      setDiaryMode("write");
+      updateDiaryStatus();
+    }
+
+    function updateDiaryStatus() {
+      const saved = findDiary(diaryLoadedDate);
+      $("diaryCount").textContent = `${$("diaryBody").value.length} / 5000`;
+      $("diaryStatus").textContent = diaryDirty ? "未保存" : saved ? "保存済み" : "";
+      $("diarySave").textContent = saved ? "更新" : "保存";
+    }
+
+    function renderDiary() {
+      if (!diaryLoadedDate) loadDiaryEditor(dateStr(today()));
+      $("diaryDate").max = dateStr(today());
+
+      $("diaryList").innerHTML = state.diaries
+        .map((x) => `
+          <div class="card diary-entry">
+            <div class="diary-entry-head">
+              <p class="diary-entry-date">${formatDiaryDate(x.entry_date)}</p>
+              <div class="diary-entry-actions">
+                <button class="link" data-action="edit" data-date="${x.entry_date}">編集</button>
+                <button class="del" data-action="delete" data-date="${x.entry_date}" aria-label="削除">×</button>
+              </div>
+            </div>
+            <div class="md diary-entry-body">${renderMarkdown(x.body)}</div>
+          </div>`)
+        .join("");
+      $("diaryListTitle").hidden = state.diaries.length === 0;
+
+      // 長い日記だけ「途中まで表示＋押すと全文」にする
+      document.querySelectorAll(".diary-entry-body").forEach((el) => {
+        el.classList.add("can-expand");
+        if (el.scrollHeight <= el.clientHeight + 4) el.classList.remove("can-expand");
+      });
+    }
+
+    $("diaryBody").addEventListener("input", () => {
+      diaryDirty = true;
+      updateDiaryStatus();
+    });
+
+    // 書きかけのまま別の日に移るときは確認する
+    function switchDiaryDate(date) {
+      if (date === diaryLoadedDate) return;
+      if (diaryDirty && !confirm("保存していない内容があります。破棄して移動しますか？")) {
+        $("diaryDate").value = diaryLoadedDate;
+        return;
+      }
+      loadDiaryEditor(date);
+    }
+
+    $("diaryDate").addEventListener("change", () => {
+      if ($("diaryDate").value) switchDiaryDate($("diaryDate").value);
+    });
+
+    $("diarySave").addEventListener("click", async () => {
+      const body = $("diaryBody").value.trim();
+      if (!body) {
+        toast("日記を入力してください");
+        return;
+      }
+      $("diarySave").disabled = true;
+      // 同じ日の日記があれば上書き、なければ新しく作る（upsert）
+      const { data, error } = await db
+        .from("diaries")
+        .upsert(
+          { user_id: state.user.id, entry_date: diaryLoadedDate, body, updated_at: new Date().toISOString() },
+          { onConflict: "user_id,entry_date" }
+        )
+        .select("id, entry_date, body")
+        .single();
+      $("diarySave").disabled = false;
+      if (error) {
+        toast(SAVE_ERROR);
+        return;
+      }
+      state.diaries = [data, ...state.diaries.filter((x) => x.entry_date !== data.entry_date)]
+        .sort((a, b) => (a.entry_date < b.entry_date ? 1 : -1));
+      diaryDirty = false;
+      updateDiaryStatus();
+      renderDiary();
+    });
+
+    // 一覧：編集で入力欄に開く／×で削除／本文を押すと全文表示
+    $("diaryList").addEventListener("click", async (e) => {
+      const del = e.target.closest('[data-action="delete"]');
+      if (del) {
+        const date = del.dataset.date;
+        if (!confirm(`${formatDiaryDate(date)}の日記を削除しますか？`)) return;
+        const before = state.diaries;
+        state.diaries = state.diaries.filter((x) => x.entry_date !== date);
+        if (date === diaryLoadedDate) loadDiaryEditor(date);
+        renderDiary();
+        const { error } = await db.from("diaries").delete().eq("entry_date", date);
+        if (error) {
+          state.diaries = before;
+          renderDiary();
+          toast(SAVE_ERROR);
+        }
+        return;
+      }
+      const edit = e.target.closest('[data-action="edit"]');
+      if (edit) {
+        switchDiaryDate(edit.dataset.date);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        return;
+      }
+      // リンクやチェックボックス以外の場所を押したら、全文を開く／閉じる
+      const body = e.target.closest(".diary-entry-body.can-expand");
+      if (body && !e.target.closest("a, input")) body.classList.toggle("expanded");
+    });
+
     // ===== データの読み込み =====
-    // 習慣の記録は1回で最大1000件しか取れないので、分けて全部読む
-    async function fetchAllLogs() {
+    // Supabase は1回で最大1000件しか返さないので、件数が増えるものは分けて全部読む
+    async function fetchAll(table, columns, orderBy, ascending = true) {
       const PAGE = 1000;
       const rows = [];
       for (let from = 0; ; from += PAGE) {
         const { data, error } = await db
-          .from("habit_logs")
-          .select("habit_id, done_on")
-          .order("done_on")
+          .from(table)
+          .select(columns)
+          .order(orderBy, { ascending })
           .range(from, from + PAGE - 1);
         if (error) throw error;
         rows.push(...data);
@@ -737,11 +1075,12 @@
     }
 
     async function loadAll() {
-      const [profile, goals, habits, logs] = await Promise.all([
+      const [profile, goals, habits, logs, diaries] = await Promise.all([
         db.from("profiles").select("birthday").maybeSingle(),
         db.from("goals").select("id, title, deadline, done").order("created_at"),
         db.from("habits").select("id, title").order("created_at"),
-        fetchAllLogs(),
+        fetchAll("habit_logs", "habit_id, done_on", "done_on"),
+        fetchAll("diaries", "id, entry_date, body", "entry_date", false),
       ]);
       const error = profile.error || goals.error || habits.error;
       if (error) throw error;
@@ -752,12 +1091,14 @@
         ...h,
         doneDates: logs.filter((l) => l.habit_id === h.id).map((l) => l.done_on),
       }));
+      state.diaries = diaries;
     }
 
     function renderAll() {
       render();
       renderGoals();
       renderHabits();
+      renderDiary();
     }
 
     // ===== ログイン =====
@@ -806,7 +1147,9 @@
 
     $("logout").addEventListener("click", async () => {
       await db.auth.signOut();
-      Object.assign(state, { user: null, birthday: null, goals: [], habits: [] });
+      Object.assign(state, { user: null, birthday: null, goals: [], habits: [], diaries: [] });
+      diaryLoadedDate = null;
+      diaryDirty = false;
       showScreen("login");
     });
 
