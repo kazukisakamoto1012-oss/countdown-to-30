@@ -196,8 +196,8 @@
     /* アカウント */
     .account {
       display: flex;
-      justify-content: space-between;
-      align-items: center;
+      flex-direction: column;
+      align-items: flex-start;
       gap: 12px;
       margin-top: 48px;
       padding-top: 16px;
@@ -340,7 +340,7 @@
       <span id="userEmail"></span>
       <span class="account-links">
         <a href="privacy.html">プライバシーポリシー</a>
-        <button class="link" id="themeToggle">ダークにする</button>   ← この行を追加
+        <button class="link" id="themeToggle">ダークにする</button>
         <button class="link" id="logout">ログアウト</button>
       </span>
     </div>
