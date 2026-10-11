@@ -231,6 +231,17 @@
     .md a { color: var(--accent); }
     .md table { border-collapse: collapse; }
     .md th, .md td { border: 1px solid var(--line); padding: 4px 8px; }
+    /* Google ドキュメント連携 */
+    .gdoc { padding: 16px 20px; }
+    .gdoc-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+    .gdoc-label { font-weight: 600; font-size: 15px; }
+    .gdoc-state { font-size: 13px; color: var(--muted); }
+    .gdoc-state.on { color: var(--accent); font-weight: 600; }
+    .gdoc-note { margin: 6px 0 0; font-size: 13px; color: var(--muted); }
+    .gdoc-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-top: 10px; font-size: 14px; }
+    .gdoc-actions a { color: var(--accent); font-weight: 600; }
+    .gdoc-actions .primary { width: auto; margin: 0; padding: 8px 18px; font-size: 14px; }
+    .gdoc-actions .link { font-size: 13px; }
     .diary-list-title { font-size: 14px; color: var(--muted); margin: 32px 0 12px; }
     .del { flex-shrink: 0; background: none; color: var(--muted); padding: 4px 8px; font-size: 20px; line-height: 1; }
 
@@ -417,6 +428,14 @@
     <div class="panel" data-panel="diary" hidden>
       <h1>日記</h1>
       <p class="sub">今日のことを、残しておく。</p>
+      <div class="card gdoc">
+        <div class="gdoc-row">
+          <span class="gdoc-label">📄 Google ドキュメント</span>
+          <span class="gdoc-state" id="gdocState">確認中…</span>
+        </div>
+        <p class="gdoc-note" id="gdocNote" hidden></p>
+        <div class="gdoc-actions" id="gdocActions"></div>
+      </div>
       <div class="card">
         <div class="diary-head">
           <input type="date" id="diaryDate" aria-label="日記の日付">
@@ -507,6 +526,8 @@
     // データは RLS（行単位のアクセス制御）で本人しか読み書きできないようにしている
     const SUPABASE_URL = "https://vhionrkamplzjiaikdwf.supabase.co";
     const SUPABASE_KEY = "sb_publishable_Sd3vtNV7lz1Q8OEVRa2-OA_9bNS0Wx4";
+    // Google ドキュメントへの書き込みを頼む Cloudflare Worker
+    const WORKER_URL = "https://countdown-to-30.kazuki1012.workers.dev";
     const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     const $ = (id) => document.getElementById(id);
@@ -1026,6 +1047,7 @@
       diaryDirty = false;
       updateDiaryStatus();
       renderDiary();
+      requestSync([data.entry_date.slice(0, 7)]);
     });
 
     // 一覧：編集で入力欄に開く／×で削除／本文を押すと全文表示
@@ -1043,6 +1065,8 @@
           state.diaries = before;
           renderDiary();
           toast(SAVE_ERROR);
+        } else {
+          requestSync([date.slice(0, 7)]);
         }
         return;
       }
@@ -1056,6 +1080,154 @@
       const body = e.target.closest(".diary-entry-body.can-expand");
       if (body && !e.target.closest("a, input")) body.classList.toggle("expanded");
     });
+
+    // ===== Google ドキュメント連携（Cloudflare Worker を呼ぶ） =====
+    const google = { status: "unknown", docUrl: null, syncing: false, done: false };
+
+    // Google から戻ってきたときの結果（?google=connected など）。URL からは消しておく
+    const googleResult = new URLSearchParams(location.search).get("google");
+    if (googleResult) {
+      const clean = new URL(location.href);
+      clean.searchParams.delete("google");
+      history.replaceState(null, "", clean);
+    }
+
+    // Worker にお願いを送る。ログイン中の通行証を付けて「本人です」と伝える
+    async function workerApi(path, { method = "GET", body } = {}) {
+      const { data } = await db.auth.getSession();
+      const headers = { Authorization: `Bearer ${data.session ? data.session.access_token : ""}` };
+      if (body) headers["Content-Type"] = "application/json";
+      const res = await fetch(WORKER_URL + path, { method, headers, body: body ? JSON.stringify(body) : undefined });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const err = new Error(json.error || String(res.status));
+        err.code = json.error;
+        throw err;
+      }
+      return json;
+    }
+
+    function renderGoogle() {
+      const stateEl = $("gdocState");
+      const note = $("gdocNote");
+      const actions = $("gdocActions");
+      stateEl.classList.toggle("on", google.status === "connected");
+      note.hidden = true;
+
+      if (google.status === "connected") {
+        stateEl.textContent = google.syncing ? "反映中…" : google.done ? "反映しました ✓" : "連携中";
+        actions.innerHTML = `
+          ${google.docUrl ? `<a href="${google.docUrl}" target="_blank" rel="noopener">ドキュメントを開く ↗</a>` : ""}
+          <button class="link" id="gdocDisconnect">連携を解除</button>`;
+        if (!google.docUrl) {
+          note.hidden = false;
+          note.textContent = "日記を保存すると、ドキュメントが作られます";
+        }
+      } else if (google.status === "disconnected") {
+        stateEl.textContent = "未連携";
+        note.hidden = false;
+        note.textContent = "書いた日記を、月ごとのタブに分けて自動で保存できます";
+        actions.innerHTML = `<button class="primary" id="gdocConnect">連携する</button>`;
+      } else if (google.status === "error") {
+        stateEl.textContent = "確認できませんでした";
+        actions.innerHTML = "";
+      } else {
+        stateEl.textContent = "確認中…";
+        actions.innerHTML = "";
+      }
+    }
+
+    async function loadGoogleStatus() {
+      try {
+        const r = await workerApi("/google/status");
+        google.status = r.connected ? "connected" : "disconnected";
+        google.docUrl = r.docUrl;
+      } catch (err) {
+        google.status = "error";
+      }
+      renderGoogle();
+    }
+
+    // 保存のたびに呼ばれる。反映中に次の保存があったら、終わってからまとめてもう一度反映する
+    const pendingMonths = new Set();
+    let syncRunning = false;
+
+    function requestSync(months) {
+      if (google.status !== "connected") return;
+      months.forEach((m) => pendingMonths.add(m));
+      runSync();
+    }
+
+    async function runSync() {
+      if (syncRunning) return;
+      syncRunning = true;
+      google.syncing = true;
+      google.done = false;
+      renderGoogle();
+      let months = [];
+      try {
+        while (pendingMonths.size) {
+          months = [...pendingMonths];
+          pendingMonths.clear();
+          const r = await workerApi("/diary/sync", { method: "POST", body: { months } });
+          google.docUrl = r.docUrl;
+        }
+        google.done = true;
+      } catch (err) {
+        if (err.code === "not_connected") {
+          google.status = "disconnected";
+          toast("Google ドキュメントとの連携が切れました。もう一度連携してください");
+        } else {
+          months.forEach((m) => pendingMonths.add(m)); // 次に保存したときに、もう一度反映する
+          toast("Google ドキュメントへの反映に失敗しました");
+        }
+      } finally {
+        syncRunning = false;
+        google.syncing = false;
+        renderGoogle();
+      }
+    }
+
+    $("gdocActions").addEventListener("click", async (e) => {
+      if (e.target.id === "gdocConnect") {
+        e.target.disabled = true;
+        try {
+          const r = await workerApi("/google/connect", {
+            method: "POST",
+            body: { returnTo: location.origin + location.pathname },
+          });
+          location.href = r.url; // Google の許可画面へ
+        } catch (err) {
+          e.target.disabled = false;
+          toast("連携を開始できませんでした。もう一度お試しください");
+        }
+      } else if (e.target.id === "gdocDisconnect") {
+        if (!confirm("Google ドキュメントとの連携を解除しますか？（これまでのドキュメントはドライブに残ります）")) return;
+        try {
+          await workerApi("/google/disconnect", { method: "POST" });
+          Object.assign(google, { status: "disconnected", docUrl: null, done: false });
+          renderGoogle();
+        } catch (err) {
+          toast("連携を解除できませんでした。もう一度お試しください");
+        }
+      }
+    });
+
+    // ログイン後に呼ぶ：連携状態を確かめ、Google から戻ってきた直後なら結果を伝える
+    async function afterLogin() {
+      await loadGoogleStatus();
+      if (!googleResult) return;
+      showTab("diary");
+      if (googleResult === "connected" && google.status === "connected") {
+        const months = [...new Set(state.diaries.map((x) => x.entry_date.slice(0, 7)))];
+        toast(months.length ? "連携しました。これまでの日記を書き込んでいます" : "Google ドキュメントと連携しました");
+        requestSync(months);
+      } else if (googleResult === "scope") {
+        toast("Google ドライブへのアクセスを許可してください（チェックを入れてから続行）");
+      } else if (googleResult === "error") {
+        toast("連携できませんでした。もう一度お試しください");
+      }
+    }
 
     // ===== データの読み込み =====
     // Supabase は1回で最大1000件しか返さないので、件数が増えるものは分けて全部読む
@@ -1124,6 +1296,7 @@
         await loadAll();
         renderAll();
         showScreen("app");
+        afterLogin();
       } catch (err) {
         state.user = null;
         $("loginError").textContent = "データを読み込めませんでした。ページを再読み込みしてください";
@@ -1150,6 +1323,7 @@
       Object.assign(state, { user: null, birthday: null, goals: [], habits: [], diaries: [] });
       diaryLoadedDate = null;
       diaryDirty = false;
+      Object.assign(google, { status: "unknown", docUrl: null, syncing: false, done: false });
       showScreen("login");
     });
 

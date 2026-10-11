@@ -2,3 +2,15 @@
 name = "countdown-to-30"            # Worker の名前（公開URLにも使われる）
 main = "src/index.js"               # 最初に動かすファイル
 compatibility_date = "2026-10-04"   # この日付時点の Workers の仕様で動かす
+
+# 公開しても問題ない設定値（プログラムからは env.名前 で読める）
+[vars]
+SUPABASE_URL = "https://vhionrkamplzjiaikdwf.supabase.co"
+SUPABASE_PUBLISHABLE_KEY = "sb_publishable_Sd3vtNV7lz1Q8OEVRa2-OA_9bNS0Wx4"
+GOOGLE_CLIENT_ID = "568636691233-vdgo8nmvbrlifp75rdjdajl6a7rrtskv.apps.googleusercontent.com"
+
+# 秘密の値はここに書かず、`npx wrangler secret put 名前` で Cloudflare に預ける
+#   GOOGLE_CLIENT_SECRET  Google の秘密の鍵
+#   SUPABASE_SECRET_KEY   Supabase の秘密の鍵（RLS を通らずに読み書きできる）
+#   STATE_SECRET          連携の途中で改ざんされていないか確かめるための鍵
+#   ENCRYPTION_KEY        Google の合鍵を暗号化して保存するための鍵
